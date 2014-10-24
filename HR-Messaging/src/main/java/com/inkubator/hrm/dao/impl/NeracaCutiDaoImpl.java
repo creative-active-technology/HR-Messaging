@@ -82,6 +82,7 @@ public class NeracaCutiDaoImpl extends IDAOImpl<NeracaCuti> implements NeracaCut
     public void saveBacth(List<NeracaCuti> data) {
        int counter = 0;
         for (NeracaCuti neracaCuti : data) {
+            System.out.println(neracaCuti);
             getCurrentSession().save(neracaCuti);
             counter++;
             if (counter % 20 == 0) {
