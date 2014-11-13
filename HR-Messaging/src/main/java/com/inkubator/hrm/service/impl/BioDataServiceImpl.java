@@ -310,7 +310,7 @@ public class BioDataServiceImpl extends IServiceImpl implements BioDataService {
 		gsonBuilder.setDateFormat("dd MMMM yyyy");
 		gsonBuilder.registerTypeAdapterFactory(HibernateProxyTypeAdapter.FACTORY);
 		gsonBuilder.setExclusionStrategies(new EntityExclusionStrategy());
-		Gson gson = gsonBuilder.create();
+		Gson gson = gsonBuilder.create();Gson
 		JsonParser parser = new JsonParser();		
 		JsonObject json = new JsonObject();
 		

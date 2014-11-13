@@ -11,13 +11,14 @@ package com.inkubator.hrm;
  */
 public class HRMConstant {
 
-	public static final String SYSTEM_ADMIN = "SYSTEM_ADMIN";
+    public static final String SYSTEM_ADMIN = "SYSTEM_ADMIN";
     public static final String SPRING_SECURITY_CHECK = "j_spring_security_check";
     public static final String BAHASA_ACTIVE = "bahasa_active";
     public static final String LOGIN_DATE = "login_date";
     public static final String USER_LOGIN_ID = "user_login_id";
     public static final String NOTIFICATION_LOGIN_CHANEL_SOCKET = "/notificationsLogin";
     public static final String NOTIFICATION_APPROVAL_CHANEL_SOCKET = "/notificationsApproval";
+    public static final String CHECK_IN_OUT_CHANEL_SOCKET="/checkInChekOut";
     public static final String PASSWORD_CONFIG_CODE = "passconfigcode";
     public static final String APPROVAL_PROCESS_CREATE_USER_ID = "PEMBUATAN USER";
     public static final String APPROVAL_PROCESS_UPDATE_USER_ID = "UPDATE USER";
@@ -163,6 +164,7 @@ public class HRMConstant {
     public static final String REIMBURSEMENT = "REIMBURSEMENT";
     public static final String LOAN = "LOAN";
     public static final String LEAVE = "LEAVE";
+    public static final String LEAVE_CANCELLATION = "LEAVE_CANCELLATION";
     public static final String OVERTIME = "OVERTIME";
     public static final String APPROVAL_PROCESS = "APPROVAL_PROCESS";
     public static final String ON_APPROVE_INFO = "ON_APPROVE_INFO";
@@ -171,6 +173,7 @@ public class HRMConstant {
     public static final Integer APPROVAL_STATUS_APPROVED = 1;
     public static final Integer APPROVAL_STATUS_REJECTED = 2;
     public static final Integer APPROVAL_STATUS_DIVERTED = 3;
+    public static final Integer APPROVAL_STATUS_CANCELLED = 4;
     public static final String SHIFT_SCHEDULE = "SHIFT_SCHEDULE";
     /* END */
 
@@ -187,6 +190,7 @@ public class HRMConstant {
     public static final Integer UPLOAD = 3;
     public static final Integer LIMITED_TIME = 4;
     public static final Integer FORMULA = 5;
+    public static final Integer LINK_SCHEMA = 6;
     /* END */
 
     /* Constant for  Appraisal Element */
@@ -246,4 +250,38 @@ public class HRMConstant {
     public static final Integer AVAILIBILITY_FULL = 0;
     public static final Integer AVALILIBILITY_PER_MONTH = 1;
     public static final Integer AVALILIBILITY_PER_DATE = 2;
+
+    /*Mecine Finger */
+    public static final Integer METHOD_UPLOAD_MACINE = 0;
+    public static final Integer METHOD_SERVICE_MACINE = 1;
+    public static final Integer METHOD_QUERY_MACINE = 2;
+
+    public static final Integer UPLOAD_EXCEL_TYPE = 0;
+    public static final Integer UPLOAD_CSV_TYPE = 1;
+
+    public static final Integer FILE_EXTENSION_XLS = 0;
+    public static final Integer FILE_EXTENSION_XLSX = 1;
+    public static final Integer FILE_EXTENSION_CSV = 2;
+
+    public static final Integer SERVICE_DATA_JSON = 0;
+    public static final Integer SERVICE_DATA_XML = 1;
+    public static final Integer FILE_EXTENSION_OTHER = 2;
+
+    public static final Integer MATCH_BASE_NIK = 0;
+    public static final Integer MATCH_BASE_NAME = 1;
+
+    public static final Integer PROTOCOL_FTP = 0;
+    public static final Integer PROTOCOL_HTTP = 1;
+    public static final Integer PROTOCOL_XMPP = 2;
+    public static final Integer PROTOCOL_OTHER = 3;
+    
+    public static final String SERVICE_NIK="NIK";
+    public static final String INDEX_MECINE="IDX";
+
+    public static final Integer CHECK_IN = 0;
+    public static final Integer CHECK_OUT = 1;
+    public static final String CHECK_IN_EARLY = "EARLY_COME";
+    public static final String CHECK_IN_ON_TIME = "ON TIME";
+    public static final String CHECK_IN_LATE = "LATE";
+
 }

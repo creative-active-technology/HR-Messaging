@@ -35,6 +35,7 @@ public class ApprovalActivity implements java.io.Serializable {
     private Integer rejectCount;
     private String pendingData;
     private String activityNumber;
+    private String previousActivityNumber;
     private Integer sequence;
     private Boolean notificationSend;
     private String locale;
@@ -187,6 +188,15 @@ public class ApprovalActivity implements java.io.Serializable {
         this.activityNumber = activityNumber;
     }
 
+    @Column(name = "previous_activity_number", length = 45)
+    public String getPreviousActivityNumber() {
+        return previousActivityNumber;
+    }
+
+    public void setPreviousActivityNumber(String previousActivityNumber) {
+        this.previousActivityNumber = previousActivityNumber;
+    }
+
     @Column(name = "sequence")
     public Integer getSequence() {
         return this.sequence;
@@ -216,12 +226,12 @@ public class ApprovalActivity implements java.io.Serializable {
 
     @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "created_time", length = 19)
-	public Date getCreatedTime() {
-		return createdTime;
-	}
+    public Date getCreatedTime() {
+        return createdTime;
+    }
 
-	public void setCreatedTime(Date createdTime) {
-		this.createdTime = createdTime;
-	}
-    
+    public void setCreatedTime(Date createdTime) {
+        this.createdTime = createdTime;
+    }
+
 }
