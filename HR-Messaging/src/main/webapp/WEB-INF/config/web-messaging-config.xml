@@ -109,6 +109,11 @@
     <bean id="jadwalKerjaMessagesListener" class="com.inkubator.hrm.service.impl.JadwalKerjaUpdateMessagesListener" lazy-init="true" />
     <!--<bean id="notificationApprovalGrowlMessagesListener" class="com.inkubator.hrm.service.impl.NotificationApprovalGrowlMessagesListener" lazy-init="true"/>-->    
     <bean id="jadwalKerjaMassMessagesListener" class="com.inkubator.hrm.service.impl.JadwalKerjaMassMessagesListener" lazy-init="true" />
+    <bean id="notificationBroadcastPolicyMessagesListener" class="com.inkubator.hrm.service.impl.NotificationBroadcastPolicyMessagesListener" lazy-init="true">    	
+        <property name="applicationName" value="${email_param_application_name}"/>
+        <property name="ownerCompany" value="${email_param_owner_company}"/>
+        <property name="ownerEmail" value="${email_param_owner_email}"/>
+    </bean>
     <jms:listener-container container-type="default" connection-factory="connectionFactoryComsume" acknowledge="transacted" 
                             transaction-manager="jsmTransaction"   >
         
@@ -118,6 +123,7 @@
         <!--<jms:listener destination="notificationApprovalGrowl" ref="notificationApprovalGrowlMessagesListener" method="onMessage"  />-->
         <jms:listener destination="notificationJadwalKerja" ref="jadwalKerjaMessagesListener" method="onMessage"  />
         <jms:listener destination="notificationMassJadwalKerja" ref="jadwalKerjaMassMessagesListener" method="onMessage"  />
+        <jms:listener destination="notificationBroadcastPolicy" ref="notificationBroadcastPolicyMessagesListener" method="onMessage"  />
     </jms:listener-container>
     
     <bean id="jsmTransaction" class="org.springframework.jms.connection.JmsTransactionManager">

@@ -1,12 +1,18 @@
 package com.inkubator.hrm.dao.impl;
 
+import com.inkubator.datacore.dao.impl.IDAOImpl;
+import com.inkubator.hrm.HRMConstant;
+import com.inkubator.hrm.dao.ApprovalActivityDao;
+import com.inkubator.hrm.entity.ApprovalActivity;
+import com.inkubator.hrm.entity.ApprovalDefinition;
+import com.inkubator.hrm.web.search.ApprovalActivitySearchParameter;
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.commons.lang3.StringUtils;
 import org.hibernate.Criteria;
 import org.hibernate.FetchMode;
 import org.hibernate.criterion.DetachedCriteria;
+import org.hibernate.criterion.Disjunction;
 import org.hibernate.criterion.MatchMode;
 import org.hibernate.criterion.Order;
 import org.hibernate.criterion.ProjectionList;
@@ -17,13 +23,6 @@ import org.hibernate.criterion.Subqueries;
 import org.hibernate.sql.JoinType;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Repository;
-
-import com.inkubator.datacore.dao.impl.IDAOImpl;
-import com.inkubator.hrm.HRMConstant;
-import com.inkubator.hrm.dao.ApprovalActivityDao;
-import com.inkubator.hrm.entity.ApprovalActivity;
-import com.inkubator.hrm.entity.ApprovalDefinition;
-import com.inkubator.hrm.web.search.ApprovalActivitySearchParameter;
 
 /**
  *
@@ -40,7 +39,7 @@ public class ApprovalActivityDaoImpl extends IDAOImpl<ApprovalActivity> implemen
     }
 
     @Override
-    public List<ApprovalActivity> getRequestHistory(String userName) {
+    public List<ApprovalActivity> getRequestHistory(String userName, int firstResult, int maxResults, Order order) {
         ProjectionList proList = Projections.projectionList();
         proList.add(Property.forName("sequence").max());
         proList.add(Projections.groupProperty("activityNumber"));
@@ -53,6 +52,9 @@ public class ApprovalActivityDaoImpl extends IDAOImpl<ApprovalActivity> implemen
         String[] var = {"sequence", "activityNumber"};
         criteria.add(Subqueries.propertiesIn(var, maxSequenceAndActivityNumber));
         criteria.setFetchMode("approvalDefinition", FetchMode.JOIN);
+        criteria.addOrder(order);
+        criteria.setFirstResult(firstResult);
+        criteria.setMaxResults(maxResults);
         return criteria.list();
     }
 
@@ -155,6 +157,13 @@ public class ApprovalActivityDaoImpl extends IDAOImpl<ApprovalActivity> implemen
         criteria.addOrder(order);
         return criteria.list();
     }
+    
+    public List<ApprovalActivity> getAllDataByPreviousActivityNumber(String previousActivityNumber, Order order) {
+    	Criteria criteria = getCurrentSession().createCriteria(getEntityClass());
+        criteria.add(Restrictions.eq("previousActivityNumber", previousActivityNumber));
+        criteria.addOrder(order);
+        return criteria.list();
+    }
 
     @Override
     public List<ApprovalActivity> getDataNotSendEmailYet() {
@@ -185,10 +194,43 @@ public class ApprovalActivityDaoImpl extends IDAOImpl<ApprovalActivity> implemen
 	}
 	
 	@Override
+	public Boolean isStillHaveWaitingStatus(List<ApprovalDefinition> appDefs, String requestBy) {
+		//get approval definition ids
+		List<Long> ids = new ArrayList<Long>();
+		for(ApprovalDefinition appDef: appDefs){
+			if(appDef.getId() != null) {
+				ids.add(appDef.getId());
+			}
+		}
+		
+		boolean isStillHaveWaitingStatus = false;
+		if(!ids.isEmpty()) {
+			Criteria criteria = getCurrentSession().createCriteria(getEntityClass());
+			criteria.add(Restrictions.eq("requestBy", requestBy));
+			criteria.add(Restrictions.eq("approvalStatus", HRMConstant.APPROVAL_STATUS_WAITING));		
+			criteria.add(Restrictions.in("approvalDefinition.id", ids));
+			isStillHaveWaitingStatus = criteria.list().size() > 0;
+		}
+		
+		return isStillHaveWaitingStatus;		
+	}
+	
+	@Override
 	public Boolean isStillHaveWaitingStatus(Long appDefId) {		
 		Criteria criteria = getCurrentSession().createCriteria(getEntityClass());
 		criteria.add(Restrictions.eq("approvalStatus", HRMConstant.APPROVAL_STATUS_WAITING));		
 		criteria.add(Restrictions.eq("approvalDefinition.id", appDefId));
+		return criteria.list().size() > 0;
+	}
+	
+	@Override
+	public Boolean isStillHaveWaitingStatus(String activityNumber) {		
+		Criteria criteria = getCurrentSession().createCriteria(getEntityClass());
+		criteria.add(Restrictions.eq("approvalStatus", HRMConstant.APPROVAL_STATUS_WAITING));
+		Disjunction disjunction = Restrictions.disjunction();
+        disjunction.add(Restrictions.eq("activityNumber", activityNumber));
+        disjunction.add(Restrictions.eq("previousActivityNumber", activityNumber));
+		criteria.add(disjunction);
 		return criteria.list().size() > 0;
 	}
 
@@ -197,6 +239,20 @@ public class ApprovalActivityDaoImpl extends IDAOImpl<ApprovalActivity> implemen
 		Criteria criteria = getCurrentSession().createCriteria(getEntityClass());
 		criteria.add(Restrictions.eq("approvalStatus", HRMConstant.APPROVAL_STATUS_WAITING));
 		return criteria.list();
+	}
+
+    @Override
+    public List<ApprovalActivity> getByApprovalStatus(Integer approvalStatus) {
+        Criteria criteria = getCurrentSession().createCriteria(getEntityClass());
+		criteria.add(Restrictions.eq("approvalStatus", approvalStatus));
+		return criteria.list();
+    }
+
+	@Override
+	public void updateAndFlush(ApprovalActivity approvalActivity) {
+		getCurrentSession().update(approvalActivity);
+		getCurrentSession().flush();
+		
 	}
 }
  

@@ -36,13 +36,13 @@ import org.springframework.transaction.annotation.Transactional;
  * @author rizkykojek
  */
 public class NotificationApprovalMessagesListener extends IServiceImpl implements MessageListener {
-
+    
     private String applicationUrl;
     private String applicationName;
     private String ownerEmail;
     private String ownerCompany;
     private String ownerAdministrator;
-
+    
     @Autowired
     private JsonConverter jsonConverter;
     @Autowired
@@ -51,7 +51,7 @@ public class NotificationApprovalMessagesListener extends IServiceImpl implement
     private ApprovalActivityDao approvalActivityDao;
     @Autowired
     private HrmUserDao hrmUserDao;
-
+    
     @SuppressWarnings({"unchecked", "rawtypes"})
     @Override
     @Transactional(readOnly = false, propagation = Propagation.REQUIRED, isolation = Isolation.READ_COMMITTED, timeout = 50, rollbackFor = Exception.class)
@@ -64,19 +64,16 @@ public class NotificationApprovalMessagesListener extends IServiceImpl implement
             gsonBuilder.setDateFormat("dd-MMMM-yyyy");
             Gson gson = gsonBuilder.create();
             JsonObject jsonObject = (JsonObject) gson.fromJson(json, JsonObject.class);
-            LOGGER.info(" Nilai json " + jsonObject);
-            LOGGER.info(" Nilai id " + jsonObject.get("approvalActivityId"));
             String locale = jsonObject.get("locale").getAsString();
             ApprovalActivity appActivity = approvalActivityDao.getEntiyByPK(jsonObject.get("approvalActivityId").getAsLong());
-            LOGGER.info(" Nilai activiti " + appActivity);
             HrmUser approverUser = hrmUserDao.getByUserId(appActivity.getApprovedBy());
             HrmUser requesterUser = hrmUserDao.getByUserId(appActivity.getRequestBy());
-
+            
             VelocityTempalteModel vtm = new VelocityTempalteModel();
             List<String> toSend = new ArrayList<>();
             List<String> toSentCC = new ArrayList<String>();
             List<String> toSentBCC = new ArrayList<String>();
-
+            
             vtm.setFrom(ownerEmail);
             /*if(appActivity.getApprovalStatus() == HRMConstant.APPROVAL_STATUS_WAITING) {
              //kirim email ke approver nya jika status waiting
@@ -98,7 +95,7 @@ public class NotificationApprovalMessagesListener extends IServiceImpl implement
             vtm.setTo(toSend.toArray(new String[toSend.size()]));
             vtm.setCc(toSentCC.toArray(new String[toSentCC.size()]));
             vtm.setBcc(toSentBCC.toArray(new String[toSentBCC.size()]));
-
+            
             Map maptoSend = new HashMap();
             if (StringUtils.equals(locale, "en")) {
                 //not yet implemented
@@ -122,7 +119,7 @@ public class NotificationApprovalMessagesListener extends IServiceImpl implement
                             maptoSend.put("totalAmount", jsonObject.get("totalAmount").getAsString());
                             maptoSend.put("deadline", jsonObject.get("deadline").getAsString());
                             break;
-
+                        
                         case HRMConstant.REIMBURSEMENT:
                             vtm.setSubject("Permohonan Pergantian Biaya");
                             vtm.setTemplatePath("email_reimbursment_waiting_approval.vm");
@@ -136,7 +133,7 @@ public class NotificationApprovalMessagesListener extends IServiceImpl implement
                             maptoSend.put("reimbursmentNo", jsonObject.get("reimbursmentNo").getAsString());
                             maptoSend.put("deadline", jsonObject.get("deadline").getAsString());
                             break;
-
+                        
                         case HRMConstant.LOAN:
                             vtm.setSubject("Permohonan Pinjaman Lunak");
                             vtm.setTemplatePath("email_loan_waiting_approval.vm");
@@ -151,7 +148,7 @@ public class NotificationApprovalMessagesListener extends IServiceImpl implement
                             maptoSend.put("interestInstallment", jsonObject.get("interestInstallment").getAsString());
                             maptoSend.put("totalNominalInstallment", jsonObject.get("totalNominalInstallment").getAsString());
                             break;
-
+                        
                         case HRMConstant.SHIFT_SCHEDULE:
                             vtm.setSubject("Permohonan Perubahan Jadwal Kerja Karyawan");
                             vtm.setTemplatePath("email_shift_schedule_waiting_approval.vm");
@@ -161,7 +158,7 @@ public class NotificationApprovalMessagesListener extends IServiceImpl implement
                             maptoSend.put("jabatan", requesterUser.getEmpData().getJabatanByJabatanId().getName());
                             maptoSend.put("proposeDate", jsonObject.get("proposeDate").getAsString());
                             break;
-
+                        
                         case HRMConstant.LEAVE:
                             vtm.setSubject("Permohonan Cuti");
                             vtm.setTemplatePath("email_leave_waiting_approval.vm");
@@ -175,7 +172,7 @@ public class NotificationApprovalMessagesListener extends IServiceImpl implement
                             maptoSend.put("fillingDate", jsonObject.get("fillingDate").getAsString());
                             maptoSend.put("materialJobsAbandoned", jsonObject.get("materialJobsAbandoned").getAsString());
                             break;
-
+                        
                         case HRMConstant.LEAVE_CANCELLATION:
                             vtm.setSubject("Permohonan Pembatalan Cuti");
                             vtm.setTemplatePath("email_leave_cancellation_waiting_approval.vm");
@@ -190,7 +187,7 @@ public class NotificationApprovalMessagesListener extends IServiceImpl implement
                             maptoSend.put("materialJobsAbandoned", jsonObject.get("materialJobsAbandoned").getAsString());
                             maptoSend.put("cancellationDate", jsonObject.get("cancellationDate").getAsString());
                             break;
-
+                        
                         case HRMConstant.OVERTIME:
                             vtm.setSubject("Permohonan Lembur");
                             vtm.setTemplatePath("email_overtime_waiting_approval.vm");
@@ -204,11 +201,11 @@ public class NotificationApprovalMessagesListener extends IServiceImpl implement
                             maptoSend.put("overTimeDate", jsonObject.get("overTimeDate").getAsString());
                             maptoSend.put("implementationNumber", jsonObject.get("implementationNumber").getAsString());
                             break;
-
+                        
                         default:
                             break;
                     }
-
+                    
                 } else if ((appActivity.getApprovalStatus() == HRMConstant.APPROVAL_STATUS_APPROVED)
                         || (appActivity.getApprovalStatus() == HRMConstant.APPROVAL_STATUS_REJECTED)) {
                     //configure email parameter based on approval name	
@@ -227,7 +224,7 @@ public class NotificationApprovalMessagesListener extends IServiceImpl implement
                             maptoSend.put("totalAmount", jsonObject.get("totalAmount").getAsString());
                             maptoSend.put("statusDesc", getStatusDesc(appActivity.getApprovalStatus(), locale));
                             break;
-
+                        
                         case HRMConstant.REIMBURSEMENT:
                             vtm.setSubject("Permohonan Pergantian Biaya");
                             vtm.setTemplatePath("email_reimbursment_approved_or_rejected.vm");
@@ -240,7 +237,7 @@ public class NotificationApprovalMessagesListener extends IServiceImpl implement
                             maptoSend.put("reimbursmentNo", jsonObject.get("reimbursmentNo").getAsString());
                             maptoSend.put("statusDesc", getStatusDesc(appActivity.getApprovalStatus(), locale));
                             break;
-
+                        
                         case HRMConstant.LOAN:
                             vtm.setSubject("Permohonan Pinjaman Lunak");
                             vtm.setTemplatePath("email_loan_approved_or_rejected_approval.vm");
@@ -255,7 +252,7 @@ public class NotificationApprovalMessagesListener extends IServiceImpl implement
                             maptoSend.put("totalNominalInstallment", jsonObject.get("totalNominalInstallment").getAsString());
                             maptoSend.put("statusDesc", getStatusDesc(appActivity.getApprovalStatus(), locale));
                             break;
-
+                        
                         case HRMConstant.SHIFT_SCHEDULE:
                             vtm.setSubject("Permohonan Perubahan Jadwal Kerja Karyawan");
                             vtm.setTemplatePath("email_shift_schedule_approved_or_rejected_approval.vm");
@@ -264,7 +261,7 @@ public class NotificationApprovalMessagesListener extends IServiceImpl implement
                             maptoSend.put("proposeDate", jsonObject.get("proposeDate").getAsString());
                             maptoSend.put("statusDesc", getStatusDesc(appActivity.getApprovalStatus(), locale));
                             break;
-
+                        
                         case HRMConstant.LEAVE:
                             vtm.setSubject("Permohonan Cuti");
                             vtm.setTemplatePath("email_leave_approved_or_rejected_approval.vm");
@@ -278,7 +275,7 @@ public class NotificationApprovalMessagesListener extends IServiceImpl implement
                             maptoSend.put("materialJobsAbandoned", jsonObject.get("materialJobsAbandoned").getAsString());
                             maptoSend.put("statusDesc", getStatusDesc(appActivity.getApprovalStatus(), locale));
                             break;
-
+                        
                         case HRMConstant.LEAVE_CANCELLATION:
                             vtm.setSubject("Permohonan Pembatalan Cuti");
                             vtm.setTemplatePath("email_leave_cancellation_approved_or_rejected_approval.vm");
@@ -293,7 +290,7 @@ public class NotificationApprovalMessagesListener extends IServiceImpl implement
                             maptoSend.put("cancellationDate", jsonObject.get("cancellationDate").getAsString());
                             maptoSend.put("statusDesc", getStatusDesc(appActivity.getApprovalStatus(), locale));
                             break;
-
+                        
                         case HRMConstant.OVERTIME:
                             vtm.setSubject("Permohonan Lembur");
                             vtm.setTemplatePath("email_overtime_approved_or_rejected_approval.vm");
@@ -308,11 +305,11 @@ public class NotificationApprovalMessagesListener extends IServiceImpl implement
                             maptoSend.put("implementationNumber", jsonObject.get("implementationNumber").getAsString());
                             maptoSend.put("statusDesc", getStatusDesc(appActivity.getApprovalStatus(), locale));
                             break;
-
+                        
                         default:
                             break;
                     }
-
+                    
                 } else if ((appActivity.getApprovalStatus() == HRMConstant.APPROVAL_STATUS_CANCELLED)) {
                     //configure email parameter based on approval name	
                     switch (appActivity.getApprovalDefinition().getName()) {
@@ -331,7 +328,7 @@ public class NotificationApprovalMessagesListener extends IServiceImpl implement
                             maptoSend.put("totalAmount", jsonObject.get("totalAmount").getAsString());
                             maptoSend.put("statusDesc", getStatusDesc(appActivity.getApprovalStatus(), locale));
                             break;
-
+                        
                         case HRMConstant.REIMBURSEMENT:
                             vtm.setSubject("Permohonan Pergantian Biaya");
                             vtm.setTemplatePath("email_reimbursment_cancelled.vm");
@@ -345,7 +342,7 @@ public class NotificationApprovalMessagesListener extends IServiceImpl implement
                             maptoSend.put("reimbursmentNo", jsonObject.get("reimbursmentNo").getAsString());
                             maptoSend.put("statusDesc", getStatusDesc(appActivity.getApprovalStatus(), locale));
                             break;
-
+                        
                         case HRMConstant.LOAN:
                             vtm.setSubject("Permohonan Pinjaman Lunak");
                             vtm.setTemplatePath("email_loan_cancelled_approval.vm");
@@ -361,7 +358,7 @@ public class NotificationApprovalMessagesListener extends IServiceImpl implement
                             maptoSend.put("totalNominalInstallment", jsonObject.get("totalNominalInstallment").getAsString());
                             maptoSend.put("statusDesc", getStatusDesc(appActivity.getApprovalStatus(), locale));
                             break;
-
+                        
                         case HRMConstant.SHIFT_SCHEDULE:
                             vtm.setSubject("Permohonan Perubahan Jadwal Kerja Karyawan");
                             vtm.setTemplatePath("email_shift_schedule_cancelled_approval.vm");
@@ -371,7 +368,7 @@ public class NotificationApprovalMessagesListener extends IServiceImpl implement
                             maptoSend.put("proposeDate", jsonObject.get("proposeDate").getAsString());
                             maptoSend.put("statusDesc", getStatusDesc(appActivity.getApprovalStatus(), locale));
                             break;
-
+                        
                         case HRMConstant.LEAVE:
                             vtm.setSubject("Permohonan Cuti");
                             vtm.setTemplatePath("email_leave_cancelled_approval.vm");
@@ -400,12 +397,12 @@ public class NotificationApprovalMessagesListener extends IServiceImpl implement
                             maptoSend.put("implementationNumber", jsonObject.get("implementationNumber").getAsString());
                             maptoSend.put("statusDesc", getStatusDesc(appActivity.getApprovalStatus(), locale));
                             break;
-
+                        
                         default:
                             break;
                     }
                 }
-
+                
                 maptoSend.put("ownerAdministrator", ownerAdministrator);
                 maptoSend.put("ownerCompany", ownerCompany);
                 maptoSend.put("applicationUrl", applicationUrl);
@@ -422,50 +419,50 @@ public class NotificationApprovalMessagesListener extends IServiceImpl implement
             LOGGER.error("Error", ex);
         }
     }
-
+    
     public String getApplicationUrl() {
         return applicationUrl;
     }
-
+    
     public void setApplicationUrl(String applicationUrl) {
         this.applicationUrl = applicationUrl;
     }
-
+    
     public String getApplicationName() {
         return applicationName;
     }
-
+    
     public void setApplicationName(String applicationName) {
         this.applicationName = applicationName;
     }
-
+    
     public String getOwnerEmail() {
         return ownerEmail;
     }
-
+    
     public void setOwnerEmail(String ownerEmail) {
         this.ownerEmail = ownerEmail;
     }
-
+    
     public String getOwnerCompany() {
         return ownerCompany;
     }
-
+    
     public void setOwnerCompany(String ownerCompany) {
         this.ownerCompany = ownerCompany;
     }
-
+    
     public String getOwnerAdministrator() {
         return ownerAdministrator;
     }
-
+    
     public void setOwnerAdministrator(String ownerAdministrator) {
         this.ownerAdministrator = ownerAdministrator;
     }
-
+    
     private String getStatusDesc(Integer approvalStatus, String locale) {
         String statusDesc = StringUtils.EMPTY;
-
+        
         if (StringUtils.equals(locale, "en")) {
             if (approvalStatus == HRMConstant.APPROVAL_STATUS_APPROVED) {
                 statusDesc = "Request is approved";
@@ -483,7 +480,8 @@ public class NotificationApprovalMessagesListener extends IServiceImpl implement
                 statusDesc = "Permohonan Dibatalkan";
             }
         }
-
+        
         return statusDesc;
     }
+    
 }

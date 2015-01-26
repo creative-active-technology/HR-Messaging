@@ -66,4 +66,6 @@ public interface EmpDataDao extends IDAO<EmpData> {
     public List<EmpData> getEmployeeByOtSearchParameter(DistributionOvetTimeModel model);
 
     public List<EmpData> getEmpDataByListId(List<Long> data);
+
+    public List<EmpData> getAllDataByGolJabatanIdAndDepartmentId(Long jabatanId, Long departmentId);
 }

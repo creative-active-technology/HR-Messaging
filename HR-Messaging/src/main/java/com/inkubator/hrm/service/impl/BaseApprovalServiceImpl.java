@@ -1,28 +1,11 @@
 package com.inkubator.hrm.service.impl;
 
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-
-import javax.jms.JMSException;
-import javax.jms.Message;
-import javax.jms.Session;
-import javax.jms.TextMessage;
-
-import org.apache.activemq.ScheduledMessage;
-import org.apache.commons.lang3.StringUtils;
-import org.hibernate.criterion.Order;
-import org.springframework.beans.BeanUtils;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.jms.core.JmsTemplate;
-import org.springframework.jms.core.MessageCreator;
-
+import ch.lambdaj.Lambda;
+import com.inkubator.common.notification.model.SMSSend;
 import com.inkubator.common.util.JsonConverter;
 import com.inkubator.common.util.RandomNumberUtil;
 import com.inkubator.datacore.service.impl.IServiceImpl;
+import com.inkubator.exception.BussinessException;
 import com.inkubator.hrm.HRMConstant;
 import com.inkubator.hrm.dao.ApprovalActivityDao;
 import com.inkubator.hrm.dao.ApprovalDefinitionDao;
@@ -35,12 +18,32 @@ import com.inkubator.hrm.entity.HrmUser;
 import com.inkubator.hrm.entity.Jabatan;
 import com.inkubator.hrm.web.model.ApprovalPushMessageModel;
 import com.inkubator.webcore.util.FacesUtil;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import javax.jms.JMSException;
+import javax.jms.Message;
+import javax.jms.Session;
+import javax.jms.TextMessage;
+import org.apache.activemq.ScheduledMessage;
+import org.apache.commons.lang3.StringUtils;
+import org.hibernate.criterion.Order;
+import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jms.core.JmsTemplate;
+import org.springframework.jms.core.MessageCreator;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  *
  * @author rizkykojek
  */
-public class BaseApprovalServiceImpl extends IServiceImpl {
+public abstract class BaseApprovalServiceImpl extends IServiceImpl {
 	
 	@Autowired
     private ApprovalActivityDao approvalActivityDao;
@@ -55,7 +58,11 @@ public class BaseApprovalServiceImpl extends IServiceImpl {
 	@Autowired
 	private JmsTemplate jmsTemplateApprovalGrowl;
 	@Autowired
+    private JmsTemplate jmsTemplateSMS;
+	@Autowired
     private JsonConverter jsonConverter;
+	
+	protected abstract void sendingEmailApprovalNotif(ApprovalActivity appActivity) throws Exception;
 	
 	/**
      * <p>Method untuk mengecek apakah di processName/module tersebut terdapat approval proses. 
@@ -80,8 +87,15 @@ public class BaseApprovalServiceImpl extends IServiceImpl {
      */
 	protected ApprovalActivity checkApprovalProcess(String processName, String requestByEmployee) throws Exception {
 		
+		List<ApprovalDefinition> listAppDef = approvalDefinitionDao.getAllDataByNameAndProcessType(processName, HRMConstant.APPROVAL_PROCESS, Order.asc("sequence"));		
+		return this.checkApprovalProcess(listAppDef, requestByEmployee);
+	}
+	
+	protected ApprovalActivity checkApprovalProcess(List<ApprovalDefinition> listAppDef, String requestByEmployee) throws Exception {
+		//sorting by sequence ASC
+		listAppDef = Lambda.sort(listAppDef, Lambda.on(ApprovalDefinition.class).getSequence());
+		
 		ApprovalActivity appActivity = null;
-		List<ApprovalDefinition> listAppDef = approvalDefinitionDao.getAllDataByNameAndProcessType(processName, HRMConstant.APPROVAL_PROCESS, Order.asc("sequence"));
 		if(!listAppDef.isEmpty()){ //if not empty
 			
 			/** Looping semua approvalDefinition berdasarkan urutan sequence (if any)
@@ -104,15 +118,18 @@ public class BaseApprovalServiceImpl extends IServiceImpl {
 					appActivity.setRequestTime(new Date());					
 					appActivity.setLocale(FacesUtil.getFacesContext().getViewRoot().getLocale().toString());
 					appActivity.setCreatedTime(new Date());
-					
-					//show growl notification for approverUserId
-		        	sendApprovalGrowlNotif(appActivity);
 		        	
+					//show growl notification for approver
+			    	this.sendApprovalGrowlNotif(appActivity);
+			    	
+			    	//send sms notification to approver
+					this.sendApprovalSmsnotif(appActivity);
+					
 					break; //keluar dari looping
 				}
 			}
 		}
-		
+    	
 		return appActivity;
 	}
 	
@@ -183,15 +200,21 @@ public class BaseApprovalServiceImpl extends IServiceImpl {
 	}
 	
 	protected Map<String, Object> approvedAndCheckNextApproval(Long appActivityId, String pendingDataUpdate, String comment) throws Exception {
-
-        /* update APPROVED approval activity */
-        ApprovalActivity approvalActivity = approvalActivityDao.getEntiyByPK(appActivityId);
+		ApprovalActivity approvalActivity = approvalActivityDao.getEntiyByPK(appActivityId);
+		
+		//check only approval status which is waiting that can be process
+    	if(approvalActivity.getApprovalStatus() != HRMConstant.APPROVAL_STATUS_WAITING){
+    		throw new BussinessException("approval.error_status_already_changed");
+    	}
+    	
+        /* update APPROVED approval activity */        
         approvalActivity.setApprovalStatus(HRMConstant.APPROVAL_STATUS_APPROVED);
         approvalActivity.setApprovalCommment(comment);
         int approvedCount = approvalActivity.getApprovalCount() + 1; //increment +1
         approvalActivity.setApprovalCount(approvedCount);
         approvalActivity.setApprovalTime(new Date());
-        approvalActivityDao.update(approvalActivity);
+        /** kenapa di flush karena kalau pake Global Transaction (data yg di update, tapi di-query lagi, datanya jadi masih mengacu ke lama/before update) */
+        approvalActivityDao.updateAndFlush(approvalActivity);
         
 
         /** checking process if there is any nextApproval for ApprovalActivity */
@@ -220,7 +243,10 @@ public class BaseApprovalServiceImpl extends IServiceImpl {
         	result.put("approvalActivity", nextApproval); 
         	
         	//show growl notification for approverUserId
-        	sendApprovalGrowlNotif(nextApproval);
+        	this.sendApprovalGrowlNotif(nextApproval);
+        	
+        	//send sms notification to approver
+    		this.sendApprovalSmsnotif(nextApproval);
         }
         
         return result;
@@ -246,8 +272,14 @@ public class BaseApprovalServiceImpl extends IServiceImpl {
      */
 	protected Map<String, Object> rejectedAndCheckNextApproval(Long appActivityId, String comment) throws Exception {
 
+		ApprovalActivity approvalActivity = approvalActivityDao.getEntiyByPK(appActivityId);
+		
+		//check only approval status which is waiting that can be process
+    	if(approvalActivity.getApprovalStatus() != HRMConstant.APPROVAL_STATUS_WAITING){
+    		throw new BussinessException("approval.error_status_already_changed");
+    	}
+    	
         /* update REJECTED approval activity */
-        ApprovalActivity approvalActivity = approvalActivityDao.getEntiyByPK(appActivityId);
         approvalActivity.setApprovalStatus(HRMConstant.APPROVAL_STATUS_REJECTED);
         approvalActivity.setApprovalCommment(comment);
         int rejectedCount = approvalActivity.getRejectCount() + 1; //increment +1
@@ -271,7 +303,10 @@ public class BaseApprovalServiceImpl extends IServiceImpl {
         	result.put("approvalActivity", nextApproval); 
         	
         	//show growl notification for approverUserId
-        	sendApprovalGrowlNotif(nextApproval);
+        	this.sendApprovalGrowlNotif(nextApproval);
+        	
+        	//send sms notification to approver
+    		this.sendApprovalSmsnotif(nextApproval);
         }
         
         return result;        
@@ -295,9 +330,15 @@ public class BaseApprovalServiceImpl extends IServiceImpl {
      * @return Map<String, Object> Key value dari map tersebut "isEndOfApprovalProcess" berupa String dan "approvalActivity" berupa objek ApprovalActivity
      */
 	protected Map<String, Object> divertedAndCheckNextApproval(Long appActivityId) throws Exception {
-
+		
+		ApprovalActivity approvalActivity = approvalActivityDao.getEntiyByPK(appActivityId);
+		
+		//check only approval status which is waiting that can be process
+    	if(approvalActivity.getApprovalStatus() != HRMConstant.APPROVAL_STATUS_WAITING){
+    		throw new BussinessException("approval.error_status_already_changed");
+    	}
+    	
         /* update DIVERTED approval activity */
-        ApprovalActivity approvalActivity = approvalActivityDao.getEntiyByPK(appActivityId);
         approvalActivity.setApprovalStatus(HRMConstant.APPROVAL_STATUS_DIVERTED);
         approvalActivity.setApprovalTime(new Date());
         approvalActivityDao.update(approvalActivity);
@@ -327,7 +368,10 @@ public class BaseApprovalServiceImpl extends IServiceImpl {
         	result.put("approvalActivity", nextApproval); 
         	
         	//show growl notification for approverUserId
-        	sendApprovalGrowlNotif(nextApproval);
+        	this.sendApprovalGrowlNotif(nextApproval);
+        	
+        	//send sms notification to approver
+    		this.sendApprovalSmsnotif(nextApproval);
         }
         
         return result;
@@ -387,7 +431,14 @@ public class BaseApprovalServiceImpl extends IServiceImpl {
         if (isCheckingNextDefinition) {
 
         	/** proses no. 2*/
-            List<ApprovalDefinition> listAppDef = approvalDefinitionDao.getAllDataByNameAndProcessTypeAndSequenceGreater(previousAppDef.getName(), previousAppDef.getProcessType(), previousAppDef.getSequence());
+        	List<ApprovalDefinition> listAppDef = new ArrayList<ApprovalDefinition>();
+            if(previousAppDef.getIsHaveManyToManyRelations()){
+            	//ini untuk approval process yang  many to many, ex: leave, overtime
+            	listAppDef = approvalDefinitionDao.getAllDataByNameAndProcessTypeAndSpecificNameAndSequenceGreater(previousAppDef.getName(), previousAppDef.getProcessType(), previousAppDef.getSpecificName(), previousAppDef.getSequence());
+            } else {
+            	//ini untuk approval process yang single, ex: businesstravel, loan, reimbursment
+            	listAppDef = approvalDefinitionDao.getAllDataByNameAndProcessTypeAndSequenceGreater(previousAppDef.getName(), previousAppDef.getProcessType(), previousAppDef.getSequence());
+            }
             
             /** Looping semua approvalDefinition berdasarkan urutan sequence (if any)
 			 *  Looping akan berhenti jika sudah ditemukan approvalActivity yang harus di proses */
@@ -456,11 +507,22 @@ public class BaseApprovalServiceImpl extends IServiceImpl {
     	
     	//get list appDefinitions by process type (only on_approve OR on_reject)
     	Integer approvalStatus = appActivity.getApprovalStatus();
-    	if(approvalStatus == HRMConstant.APPROVAL_STATUS_APPROVED){
-    		appDefinitions = approvalDefinitionDao.getAllDataByNameAndProcessType(appActivity.getApprovalDefinition().getName(), HRMConstant.ON_APPROVE_INFO, Order.asc("sequence"));    		
-    	} else if(approvalStatus == HRMConstant.APPROVAL_STATUS_REJECTED){
-    		appDefinitions = approvalDefinitionDao.getAllDataByNameAndProcessType(appActivity.getApprovalDefinition().getName(), HRMConstant.ON_REJECT_INFO, Order.asc("sequence"));    		
+    	if(StringUtils.isNotEmpty(appActivity.getApprovalDefinition().getSpecificName())){
+        	//ini untuk approval process yang  many to many, ex: leave, overtime
+    		if(approvalStatus == HRMConstant.APPROVAL_STATUS_APPROVED){
+        		appDefinitions = approvalDefinitionDao.getAllDataByNameAndProcessTypeAndSpecificName(appActivity.getApprovalDefinition().getName(), HRMConstant.ON_APPROVE_INFO, appActivity.getApprovalDefinition().getSpecificName(), Order.asc("sequence"));    		
+        	} else if(approvalStatus == HRMConstant.APPROVAL_STATUS_REJECTED){
+        		appDefinitions = approvalDefinitionDao.getAllDataByNameAndProcessTypeAndSpecificName(appActivity.getApprovalDefinition().getName(), HRMConstant.ON_REJECT_INFO, appActivity.getApprovalDefinition().getSpecificName(), Order.asc("sequence"));    		
+        	}
+    	} else {
+    		//ini untuk approval process yang single, ex: businesstravel, loan, reimbursment
+    		if(approvalStatus == HRMConstant.APPROVAL_STATUS_APPROVED){
+        		appDefinitions = approvalDefinitionDao.getAllDataByNameAndProcessType(appActivity.getApprovalDefinition().getName(), HRMConstant.ON_APPROVE_INFO, Order.asc("sequence"));    		
+        	} else if(approvalStatus == HRMConstant.APPROVAL_STATUS_REJECTED){
+        		appDefinitions = approvalDefinitionDao.getAllDataByNameAndProcessType(appActivity.getApprovalDefinition().getName(), HRMConstant.ON_REJECT_INFO, Order.asc("sequence"));    		
+        	}
     	}
+    	
     	
     	//get all email address 
     	for(ApprovalDefinition appDefinition:appDefinitions){
@@ -472,6 +534,29 @@ public class BaseApprovalServiceImpl extends IServiceImpl {
     	}
     	
     	return emailAdresses;
+    }
+    
+    /** jika approvalStatus masih waiting dan di approval definition membutuhkan sms approval notif, 
+     *  maka kirim notif dalam bentuk sms ke approverUserId */
+    private void sendApprovalSmsnotif(ApprovalActivity appActivity){
+    	if(appActivity.getApprovalStatus() == HRMConstant.APPROVAL_STATUS_WAITING && appActivity.getApprovalDefinition().getSmsNotification()){
+	    	
+	    	/** di cek apakah approver memiliki phoneNumber yang valid */
+    		HrmUser approver = hrmUserDao.getByUserId(appActivity.getApprovedBy());
+	    	if(approver != null && StringUtils.isNotEmpty(approver.getPhoneNumber())) {
+				final SMSSend mSSend = new SMSSend();
+				mSSend.setFrom(HRMConstant.SYSTEM_ADMIN);
+				mSSend.setDestination(approver.getPhoneNumber());
+				mSSend.setContent("Dear " + approver.getRealName() + " please check your pending tasks. There is an approval that needs to be approved by you.");
+				//Send notificatin SMS
+				this.jmsTemplateSMS.send(new MessageCreator() {
+					@Override
+					public Message createMessage(Session session) throws JMSException {
+						return session.createTextMessage(jsonConverter.getJson(mSSend));
+					}
+				});
+	    	}
+    	}
     }
     
     /** jika approvalStatus masih waiting, maka kirim notif dalam bentuk growl ke approverUserId 
@@ -497,6 +582,22 @@ public class BaseApprovalServiceImpl extends IServiceImpl {
                 }
             });
     	}    	
+    }
+    
+    @Transactional(readOnly = false, isolation = Isolation.READ_COMMITTED, propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
+	public void cancelled(long approvalActivityId, String comment) throws Exception {
+    	ApprovalActivity appActivity = approvalActivityDao.getEntiyByPK(approvalActivityId);
+    	//check only approval status which is waiting that can be process
+    	if(appActivity.getApprovalStatus() != HRMConstant.APPROVAL_STATUS_WAITING){
+    		throw new BussinessException("approval.error_status_already_changed");
+    	}
+    	
+    	appActivity.setApprovalStatus(HRMConstant.APPROVAL_STATUS_CANCELLED);
+    	appActivity.setApprovalCommment(comment);
+    	approvalActivityDao.update(appActivity);
+    	
+    	//send email cancellation
+    	this.sendingEmailApprovalNotif(appActivity);
     }
 
 }

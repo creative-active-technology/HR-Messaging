@@ -86,7 +86,7 @@ public class ScheduleServiceImpl extends IServiceImpl implements ScheduleService
         }
         List<TempJadwalKaryawan> dataToSave = new ArrayList<>();
         for (EmpData empData : listEmpData) {
-            dataToDelete.addAll(tempJadwalKaryawanDao.getAllByEmpId(empData.getId()));
+//            dataToDelete.addAll(tempJadwalKaryawanDao.getAllByEmpId(empData.getId()));
             WtGroupWorking groupWorking = empData.getWtGroupWorking();
             Date startDate = groupWorking.getBeginTime();//harus disini karena untuk emproyee yang berbeda
             Date endDate = groupWorking.getEndTime();
@@ -132,7 +132,7 @@ public class ScheduleServiceImpl extends IServiceImpl implements ScheduleService
                 i++;
             }
         }
-        tempJadwalKaryawanDao.deleteBacth(dataToDelete);
+//        tempJadwalKaryawanDao.deleteBacth(dataToDelete);
         tempJadwalKaryawanDao.saveBatch(dataToSave);
         LOGGER.info("Finish Running Kalkulasi Jadwal Kerja");
 

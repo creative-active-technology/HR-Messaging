@@ -60,7 +60,7 @@
         <dependency> 
             <groupId>com.inkubator</groupId>
             <artifactId>common-notification</artifactId>
-            <version>1.0.0.RELEASE</version>
+            <version>1.0.1.RELEASE</version>
             <exclusions>
                 <!--Exclude Commons Logging in favor of SLF4j--> 
                 <exclusion>

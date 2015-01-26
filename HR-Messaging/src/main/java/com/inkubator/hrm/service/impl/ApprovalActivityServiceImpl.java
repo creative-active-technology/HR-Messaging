@@ -1,7 +1,12 @@
 package com.inkubator.hrm.service.impl;
 
+import com.inkubator.common.util.RandomNumberUtil;
+import com.inkubator.datacore.service.impl.IServiceImpl;
+import com.inkubator.hrm.dao.ApprovalActivityDao;
+import com.inkubator.hrm.entity.ApprovalActivity;
+import com.inkubator.hrm.service.ApprovalActivityService;
+import com.inkubator.hrm.web.search.ApprovalActivitySearchParameter;
 import java.util.List;
-
 import org.hibernate.criterion.Order;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
@@ -9,13 +14,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-
-import com.inkubator.common.util.RandomNumberUtil;
-import com.inkubator.datacore.service.impl.IServiceImpl;
-import com.inkubator.hrm.dao.ApprovalActivityDao;
-import com.inkubator.hrm.entity.ApprovalActivity;
-import com.inkubator.hrm.service.ApprovalActivityService;
-import com.inkubator.hrm.web.search.ApprovalActivitySearchParameter;
 
 /**
  *
@@ -241,7 +239,7 @@ public class ApprovalActivityServiceImpl extends IServiceImpl implements Approva
     @Override
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ, propagation = Propagation.SUPPORTS, timeout = 50)
     public List<ApprovalActivity> getRequestHistory(String userName) throws Exception {
-        return this.approvalActivityDao.getRequestHistory(userName);
+        return this.approvalActivityDao.getRequestHistory(userName, 0, 5, Order.desc("requestTime"));
     }
 
     @Override
@@ -301,6 +299,31 @@ public class ApprovalActivityServiceImpl extends IServiceImpl implements Approva
 			lastApprovalActivity = approvalActivities.get(0);
 		}
 		return lastApprovalActivity;
+	}
+	
+	@Override
+	@Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ, propagation = Propagation.SUPPORTS, timeout = 50)
+	public ApprovalActivity getEntityByPreviousActivityNumberLastSequence(String previousActivityNumber) {
+		List<ApprovalActivity> approvalActivities = this.approvalActivityDao.getAllDataByPreviousActivityNumber(previousActivityNumber, Order.desc("sequence"));
+		ApprovalActivity lastApprovalActivity = null;
+		if(!approvalActivities.isEmpty()){
+			lastApprovalActivity = approvalActivities.get(0);
+		}
+		return lastApprovalActivity;
+	}
+
+	@Override
+	@Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ, propagation = Propagation.SUPPORTS, timeout = 50)
+	public Boolean isStillHaveWaitingStatus(String activityNumber) {
+		return this.approvalActivityDao.isStillHaveWaitingStatus(activityNumber);
+		
+	}
+        
+        @Override
+	@Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ, propagation = Propagation.SUPPORTS, timeout = 50)
+	public List<ApprovalActivity> getByApprovalStatus(Integer approvalStatus) {
+		return this.approvalActivityDao.getByApprovalStatus(approvalStatus);
+		
 	}
 
 }
