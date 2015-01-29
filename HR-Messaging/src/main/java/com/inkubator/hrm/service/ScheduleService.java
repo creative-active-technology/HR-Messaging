@@ -15,5 +15,10 @@ public interface ScheduleService {
 
     public void calculateScheduleWorking() throws Exception;
 
+    public void deleteLoginHistory() throws Exception;
+
+    public void updateWtHolidayDateWhereIsEveryYearIsOne() throws Exception;
 //    public void checkPasswordHistoryEmailNotSend() throws Exception;
+
+    public void deleteTempEmployeeSchedule() throws Exception;
 }

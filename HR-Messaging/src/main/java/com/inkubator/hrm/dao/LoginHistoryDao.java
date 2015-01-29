@@ -17,11 +17,15 @@ import org.hibernate.criterion.Order;
  */
 public interface LoginHistoryDao extends IDAO<LoginHistory> {
 
-	public List<LoginHistory> getByParam(int firstResult, int maxResults, Order order);
-	
+    public List<LoginHistory> getByParam(int firstResult, int maxResults, Order order);
+
     public List<LoginHistory> getByParam(LoginHistorySearchParameter searchParameter,
             int firstResult, int maxResults, Order order);
 
     public Long getTotalLoginHistoryByParam(LoginHistorySearchParameter searchParameter);
- 
+
+    public List<LoginHistory> getByWeekDif(int value);
+
+    public void deleteBatch(List<LoginHistory> data);
+
 }

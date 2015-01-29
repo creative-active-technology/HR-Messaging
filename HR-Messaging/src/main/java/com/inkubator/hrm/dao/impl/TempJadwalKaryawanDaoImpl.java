@@ -5,6 +5,8 @@
  */
 package com.inkubator.hrm.dao.impl;
 
+import com.inkubator.common.CommonUtilConstant;
+import com.inkubator.common.util.DateTimeUtil;
 import com.inkubator.datacore.dao.impl.IDAOImpl;
 import com.inkubator.hrm.dao.TempJadwalKaryawanDao;
 import com.inkubator.hrm.entity.EmpData;
@@ -115,6 +117,32 @@ public class TempJadwalKaryawanDaoImpl extends IDAOImpl<TempJadwalKaryawan> impl
         criteria.add(Restrictions.eq("tanggalWaktuKerja", date));
         return criteria.list();
 
+    }
+
+    @Override
+    public TempJadwalKaryawan getByEmpId(Long id, Date implementationDate) {
+        Criteria criteria = getCurrentSession().createCriteria(getEntityClass());
+        criteria.createAlias("empData", "empData", JoinType.INNER_JOIN);
+        criteria.add(Restrictions.eq("empData.id", id));
+        criteria.add(Restrictions.eq("tanggalWaktuKerja", implementationDate));
+        criteria.setFetchMode("wtWorkingHour", FetchMode.JOIN);
+        return (TempJadwalKaryawan) criteria.uniqueResult();
+    }
+
+    @Override
+    public void saveOrUpdateAndMerge(TempJadwalKaryawan jadwalKaryawan) {
+        getCurrentSession().saveOrUpdate(jadwalKaryawan);
+        getCurrentSession().flush();
+    }
+
+    @Override
+    public List<TempJadwalKaryawan> getByMonthDif(int value) {
+        Date dateUntil = new Date();
+        Date dateFrom = DateTimeUtil.getDateFrom(dateUntil, -value, CommonUtilConstant.DATE_FORMAT_MONTH);
+        System.out.println(" Tanggal Awal : " + dateFrom);
+        Criteria criteria = getCurrentSession().createCriteria(getEntityClass());
+        criteria.add(Restrictions.lt("tanggalWaktuKerja", dateFrom));
+        return criteria.list();
     }
 
 }
